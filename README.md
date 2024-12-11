@@ -93,22 +93,6 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://kentcdodds.com"><img src="https://avatars.githubusercontent.com/u/1500684?v=4?s=100" width="100px;" alt="Kent C. Dodds"/><br /><sub><b>Kent C. Dodds</b></sub></a><br /><a href="https://github.com/brisa-build/brisa/commits?author=kentcdodds" title="Documentation">📖</a></td>
-    </tr>
-  </tbody>
-</table>
-
-<!-- markdownlint-restore -->
-<!-- prettier-ignore-end -->
-
-<!-- ALL-CONTRIBUTORS-LIST:END -->
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-<table>
-  <tbody>
-    <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://aralroca.com"><img src="https://avatars3.githubusercontent.com/u/13313058?v=4?s=100" width="100px;" alt="Aral Roca Gomez"/><br /><sub><b>Aral Roca Gomez</b></sub></a><br /><a href="#maintenance-aralroca" title="Maintenance">🚧</a> <a href="https://github.com/aralroca/next-translate/commits?author=aralroca" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/AlbertSabate"><img src="https://avatars.githubusercontent.com/u/2384218?s=100" width="100px;" alt="Albert Sabaté"/><br /><sub><b>Albert Sabaté</b></sub></a><br /><a href="https://github.com/brisa-build/brisa/commits?author=AlbertSabate" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/danielart"><img src="https://avatars.githubusercontent.com/u/4655428?s=100" width="100px;" alt="Daniel Art"/><br /><sub><b>Daniel Art</b></sub></a><br /><a href="https://github.com/brisa-build/brisa/commits?author=danielart" title="Code">💻</a></td>
@@ -121,6 +105,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/anusikh"><img src="https://avatars.githubusercontent.com/u/56106489?s=100" width="100px;" alt="Anusikh"/><br /><sub><b>Anusikh</b></sub></a><br /><a href="https://github.com/brisa-build/brisa/commits?author=anusikh" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/mobley-trent"><img src="https://avatars.githubusercontent.com/u/67474838?s=100" width="100px;" alt="Mobley Trent"/><br /><sub><b>Mobley Trent</b></sub></a><br /><a href="https://github.com/brisa-build/brisa/commits?author=mobley-trent" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/gustavocadev"><img src="https://avatars.githubusercontent.com/u/84424661?s=100" width="100px;" alt="Gustavo Cadev"/><br /><sub><b>Gustavo Cadev</b></sub></a><br /><a href="https://github.com/brisa-build/brisa/commits?author=gustavocadev" title="Code">💻</a></td>
+          <td align="center" valign="top" width="14.28%"><a href="https://kentcdodds.com"><img src="https://avatars.githubusercontent.com/u/1500684?v=4?s=100" width="100px;" alt="Kent C. Dodds"/><br /><sub><b>Kent C. Dodds</b></sub></a><br /><a href="https://github.com/brisa-build/brisa/commits?author=kentcdodds" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>
