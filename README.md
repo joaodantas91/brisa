@@ -1,7 +1,7 @@
-<p align="center">
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
+<p align="center">
   <a href="https://brisa.build">
     <picture>
       <img src="https://github.com/brisa-build/brisa/assets/13313058/06a1967f-d6e8-4497-ba6d-51b176abf663" height="128">
