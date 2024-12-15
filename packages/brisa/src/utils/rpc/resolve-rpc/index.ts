@@ -4,6 +4,7 @@ import diff from 'diff-dom-streaming';
 type RenderMode = 'native' | 'transition' | 'reactivity';
 
 const TRANSITION_MODE = 'transition';
+const COMPONENT = 'component';
 const $window = window as any;
 const encoder = new TextEncoder();
 
@@ -15,11 +16,14 @@ async function resolveRPC(
   const store = $window._s;
   const mode = res.headers.get('X-Mode');
   const type = res.headers.get('X-Type');
+  const target = res.headers.get('X-Target');
+  const placement = res.headers.get('X-Placement')!;
   const urlToNavigate = res.headers.get('X-Navigate');
   const resetForm = res.headers.has('X-Reset');
   const componentId = res.headers.get('X-Cid') ?? dataSet?.cid;
   const transition = args === TRANSITION_MODE || mode === TRANSITION_MODE;
-  const isRerenderOfComponent = type?.includes('C');
+  const isRerenderOfComponent = type === COMPONENT;
+  const sameTarget = target === COMPONENT;
 
   function updateStore(entries: [string, any][]) {
     // Store WITH web components signals, so we need to notify the subscribers
@@ -53,19 +57,35 @@ async function resolveRPC(
     const docStream = isRerenderOfComponent
       ? new ReadableStream({
           async start(controller) {
+            let temp;
+            let startText = `<!--o:${componentId}-->`;
+            let endText = `<!--c:${componentId}-->`;
+
+            if (!sameTarget) {
+              const elm = document.querySelector(target!);
+              const isReplace = placement[0] === 'r';
+
+              // append / prepend / before / after (no "replace").
+              if (elm && !isReplace) {
+                temp = document.createElement(COMPONENT);
+                elm[placement as 'append'](temp);
+              }
+
+              // Modify the text of the element reference.
+              if (elm) {
+                startText = endText = (isReplace ? elm : temp)!.outerHTML;
+              }
+            }
+
             const html = document.documentElement.outerHTML;
-            controller.enqueue(
-              encoder.encode(html.split(`<!--o:${componentId}-->`)[0]),
-            );
+            controller.enqueue(encoder.encode(html.split(startText)[0]));
             const reader = res.body!.getReader();
             while (true) {
               const { value, done } = await reader.read();
               if (done) break;
               controller.enqueue(value);
             }
-            controller.enqueue(
-              encoder.encode(html.split(`<!--c:${componentId}-->`)[1]),
-            );
+            controller.enqueue(encoder.encode(html.split(endText)[1]));
             controller.close();
           },
         })

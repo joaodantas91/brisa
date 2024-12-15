@@ -24,10 +24,6 @@ type Dependencies = [string, string, string][][];
 
 const DEPENDENCIES = Symbol.for('DEPENDENCIES');
 
-/**
- *
- * This method is called inside the catch block of the action function.
- */
 export default async function resolveAction({
   req,
   error,
@@ -75,16 +71,9 @@ export default async function resolveAction({
     return new Response(error.message, { status: 500 });
   }
 
-  // @ts-ignore
-  const isOriginalAction = req._originalActionId === actionId;
   const options = JSON.parse(
     error.message.replace(PREFIX_MESSAGE, '').replace(SUFFIX_MESSAGE, ''),
   );
-
-  // Return error to be captured on the response-action withResolvers
-  if (!isOriginalAction && options.type === 'targetComponent') {
-    throw error;
-  }
 
   const pagesRouter = getRouteMatcher(
     PAGES_DIR,
@@ -112,8 +101,9 @@ export default async function resolveAction({
   // Rerender only component (not page):
   const dependencies = req.store.get(DEPENDENCIES);
   const componentId = extractComponentId(dependencies, actionId);
-  // @ts-ignore
-  const props = error[Symbol.for('props')] ?? {};
+  const element = (error as any)[Symbol.for('element')];
+  const props: Record<string, any> = {};
+
   const actionValue = Object.assign(() => {}, {
     actionId,
     actions: dependencies,
@@ -125,13 +115,15 @@ export default async function resolveAction({
   }
 
   const { pageHeaders } = await getPageComponentWithHeaders({ req, route });
-  const stream = await renderToReadableStream(component(props), {
+  const stream = await renderToReadableStream(element ?? component(props), {
     request: req,
     isPage: false,
   });
 
   pageHeaders.set('X-Mode', options.renderMode);
   pageHeaders.set('X-Type', options.type);
+  pageHeaders.set('X-Target', options.target ?? 'component');
+  pageHeaders.set('X-Placement', options.placement ?? 'replace');
   if (componentId) pageHeaders.set('X-Cid', componentId);
 
   return new Response(stream, {

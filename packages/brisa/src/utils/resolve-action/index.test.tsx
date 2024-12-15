@@ -155,7 +155,7 @@ describe('utils', () => {
       const error = new Error(
         PREFIX_MESSAGE +
           JSON.stringify({
-            type: 'targetComponent',
+            type: 'component',
             renderMode: 'reactivity',
           }) +
           SUFFIX_MESSAGE,
@@ -165,8 +165,7 @@ describe('utils', () => {
       const req = extendRequestContext({
         originalRequest: new Request('http://localhost/invalid-page'),
       });
-      // @ts-ignore
-      req._originalActionId = 'a1_1';
+
       const response = await resolveAction({
         req,
         error,
@@ -261,7 +260,7 @@ describe('utils', () => {
       const error = new Error(
         PREFIX_MESSAGE +
           JSON.stringify({
-            type: 'targetComponent',
+            type: 'component',
             renderMode: 'transition',
           }) +
           SUFFIX_MESSAGE,
@@ -269,8 +268,6 @@ describe('utils', () => {
       error.name = 'rerender';
 
       const req = getReq();
-      // @ts-ignore
-      req._originalActionId = 'a1_1';
       const response = await resolveAction({
         req,
         error,
@@ -286,44 +283,17 @@ describe('utils', () => {
       expect(response.headers.get('Transfer-Encoding')).toBe('chunked');
       expect(response.headers.get('vary')).toBe('Accept-Encoding');
       expect(response.headers.get('X-Mode')).toBe('transition');
-      expect(response.headers.get('X-Type')).toBe('targetComponent');
+      expect(response.headers.get('X-Type')).toBe('component');
       // responseHeaders of the page:
       expect(response.headers.get('X-Test')).toBe('success');
     });
 
-    it('should throw an error when is not the originalActionId and type is "targetComponent"', async () => {
+    it('should render the "component" when the originalActionId is the same as the actionId', async () => {
       const req = getReq();
-      // @ts-ignore
-      req._originalActionId = 'a1_1';
       const error = new Error(
         PREFIX_MESSAGE +
           JSON.stringify({
-            type: 'targetComponent',
-            renderMode: 'transition',
-          }) +
-          SUFFIX_MESSAGE,
-      );
-
-      error.name = 'rerender';
-
-      expect(() =>
-        resolveAction({
-          req,
-          error,
-          actionId: 'a1_2',
-          component: () => <div />,
-        }),
-      ).toThrow(error);
-    });
-
-    it('should render the "targetComponent" when the originalActionId is the same as the actionId', async () => {
-      const req = getReq();
-      // @ts-ignore
-      req._originalActionId = 'a1_1';
-      const error = new Error(
-        PREFIX_MESSAGE +
-          JSON.stringify({
-            type: 'targetComponent',
+            type: 'component',
             renderMode: 'transition',
           }) +
           SUFFIX_MESSAGE,
@@ -346,24 +316,282 @@ describe('utils', () => {
       expect(response.headers.get('Transfer-Encoding')).toBe('chunked');
       expect(response.headers.get('vary')).toBe('Accept-Encoding');
       expect(response.headers.get('X-Mode')).toBe('transition');
-      expect(response.headers.get('X-Type')).toBe('targetComponent');
+      expect(response.headers.get('X-Type')).toBe('component');
+      expect(response.headers.get('X-Target')).toBe('component');
       expect(response.headers.get('X-Cid')).toBeNull();
       // responseHeaders of the page:
       expect(response.headers.get('X-Test')).toBe('success');
     });
 
-    it('should render the "currentComponent" with "X-Cid" when different originalActionId than actionId', async () => {
+    it('should render the "component" with X-Placement as replace as default (no placement)', async () => {
+      const req = getReq();
+      const error = new Error(
+        PREFIX_MESSAGE +
+          JSON.stringify({
+            type: 'component',
+            renderMode: 'transition',
+          }) +
+          SUFFIX_MESSAGE,
+      );
+
+      error.name = 'rerender';
+
+      const response = await resolveAction({
+        req,
+        error,
+        actionId: 'a1_1',
+        component: () => <div>Test</div>,
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe('<div>Test</div>');
+      expect(response.headers.get('Content-Type')).toBe(
+        'text/html; charset=utf-8',
+      );
+      expect(response.headers.get('Transfer-Encoding')).toBe('chunked');
+      expect(response.headers.get('vary')).toBe('Accept-Encoding');
+      expect(response.headers.get('X-Mode')).toBe('transition');
+      expect(response.headers.get('X-Type')).toBe('component');
+      expect(response.headers.get('X-Placement')).toBe('replace');
+      expect(response.headers.get('X-Target')).toBe('component');
+      expect(response.headers.get('X-Cid')).toBeNull();
+      // responseHeaders of the page:
+      expect(response.headers.get('X-Test')).toBe('success');
+    });
+
+    it('should render the "component" with X-Placement as replace', async () => {
+      const req = getReq();
+      const error = new Error(
+        PREFIX_MESSAGE +
+          JSON.stringify({
+            type: 'component',
+            renderMode: 'transition',
+            placement: 'replace',
+          }) +
+          SUFFIX_MESSAGE,
+      );
+
+      error.name = 'rerender';
+
+      const response = await resolveAction({
+        req,
+        error,
+        actionId: 'a1_1',
+        component: () => <div>Test</div>,
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe('<div>Test</div>');
+      expect(response.headers.get('Content-Type')).toBe(
+        'text/html; charset=utf-8',
+      );
+      expect(response.headers.get('Transfer-Encoding')).toBe('chunked');
+      expect(response.headers.get('vary')).toBe('Accept-Encoding');
+      expect(response.headers.get('X-Mode')).toBe('transition');
+      expect(response.headers.get('X-Type')).toBe('component');
+      expect(response.headers.get('X-Placement')).toBe('replace');
+      expect(response.headers.get('X-Target')).toBe('component');
+      expect(response.headers.get('X-Cid')).toBeNull();
+      // responseHeaders of the page:
+      expect(response.headers.get('X-Test')).toBe('success');
+    });
+
+    it('should render the "component" with X-Placement as append', async () => {
+      const req = getReq();
+      const error = new Error(
+        PREFIX_MESSAGE +
+          JSON.stringify({
+            type: 'component',
+            renderMode: 'transition',
+            placement: 'append',
+          }) +
+          SUFFIX_MESSAGE,
+      );
+
+      error.name = 'rerender';
+
+      const response = await resolveAction({
+        req,
+        error,
+        actionId: 'a1_1',
+        component: () => <div>Test</div>,
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe('<div>Test</div>');
+      expect(response.headers.get('Content-Type')).toBe(
+        'text/html; charset=utf-8',
+      );
+      expect(response.headers.get('Transfer-Encoding')).toBe('chunked');
+      expect(response.headers.get('vary')).toBe('Accept-Encoding');
+      expect(response.headers.get('X-Mode')).toBe('transition');
+      expect(response.headers.get('X-Type')).toBe('component');
+      expect(response.headers.get('X-Placement')).toBe('append');
+      expect(response.headers.get('X-Target')).toBe('component');
+      expect(response.headers.get('X-Cid')).toBeNull();
+      // responseHeaders of the page:
+      expect(response.headers.get('X-Test')).toBe('success');
+    });
+
+    it('should render the "component" with X-Placement as prepend', async () => {
+      const req = getReq();
+      const error = new Error(
+        PREFIX_MESSAGE +
+          JSON.stringify({
+            type: 'component',
+            renderMode: 'transition',
+            placement: 'prepend',
+          }) +
+          SUFFIX_MESSAGE,
+      );
+
+      error.name = 'rerender';
+
+      const response = await resolveAction({
+        req,
+        error,
+        actionId: 'a1_1',
+        component: () => <div>Test</div>,
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe('<div>Test</div>');
+      expect(response.headers.get('Content-Type')).toBe(
+        'text/html; charset=utf-8',
+      );
+      expect(response.headers.get('Transfer-Encoding')).toBe('chunked');
+      expect(response.headers.get('vary')).toBe('Accept-Encoding');
+      expect(response.headers.get('X-Mode')).toBe('transition');
+      expect(response.headers.get('X-Type')).toBe('component');
+      expect(response.headers.get('X-Placement')).toBe('prepend');
+      expect(response.headers.get('X-Target')).toBe('component');
+      expect(response.headers.get('X-Cid')).toBeNull();
+      // responseHeaders of the page:
+      expect(response.headers.get('X-Test')).toBe('success');
+    });
+
+    it('should render the "component" with X-Placement as after', async () => {
+      const req = getReq();
+      const error = new Error(
+        PREFIX_MESSAGE +
+          JSON.stringify({
+            type: 'component',
+            renderMode: 'transition',
+            placement: 'after',
+          }) +
+          SUFFIX_MESSAGE,
+      );
+
+      error.name = 'rerender';
+
+      const response = await resolveAction({
+        req,
+        error,
+        actionId: 'a1_1',
+        component: () => <div>Test</div>,
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe('<div>Test</div>');
+      expect(response.headers.get('Content-Type')).toBe(
+        'text/html; charset=utf-8',
+      );
+      expect(response.headers.get('Transfer-Encoding')).toBe('chunked');
+      expect(response.headers.get('vary')).toBe('Accept-Encoding');
+      expect(response.headers.get('X-Mode')).toBe('transition');
+      expect(response.headers.get('X-Type')).toBe('component');
+      expect(response.headers.get('X-Placement')).toBe('after');
+      expect(response.headers.get('X-Target')).toBe('component');
+      expect(response.headers.get('X-Cid')).toBeNull();
+      // responseHeaders of the page:
+      expect(response.headers.get('X-Test')).toBe('success');
+    });
+
+    it('should render the "component" with X-Placement as before', async () => {
+      const req = getReq();
+      const error = new Error(
+        PREFIX_MESSAGE +
+          JSON.stringify({
+            type: 'component',
+            renderMode: 'transition',
+            placement: 'before',
+          }) +
+          SUFFIX_MESSAGE,
+      );
+
+      error.name = 'rerender';
+
+      const response = await resolveAction({
+        req,
+        error,
+        actionId: 'a1_1',
+        component: () => <div>Test</div>,
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe('<div>Test</div>');
+      expect(response.headers.get('Content-Type')).toBe(
+        'text/html; charset=utf-8',
+      );
+      expect(response.headers.get('Transfer-Encoding')).toBe('chunked');
+      expect(response.headers.get('vary')).toBe('Accept-Encoding');
+      expect(response.headers.get('X-Mode')).toBe('transition');
+      expect(response.headers.get('X-Type')).toBe('component');
+      expect(response.headers.get('X-Placement')).toBe('before');
+      expect(response.headers.get('X-Target')).toBe('component');
+      expect(response.headers.get('X-Cid')).toBeNull();
+      // responseHeaders of the page:
+      expect(response.headers.get('X-Test')).toBe('success');
+    });
+
+    it('should add X-Target with the correct target', async () => {
+      const req = getReq();
+      const error = new Error(
+        PREFIX_MESSAGE +
+          JSON.stringify({
+            type: 'component',
+            renderMode: 'transition',
+            target: '#foo',
+          }) +
+          SUFFIX_MESSAGE,
+      );
+
+      error.name = 'rerender';
+
+      const response = await resolveAction({
+        req,
+        error,
+        actionId: 'a1_1',
+        component: () => <div>Test</div>,
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe('<div>Test</div>');
+      expect(response.headers.get('Content-Type')).toBe(
+        'text/html; charset=utf-8',
+      );
+      expect(response.headers.get('Transfer-Encoding')).toBe('chunked');
+      expect(response.headers.get('vary')).toBe('Accept-Encoding');
+      expect(response.headers.get('X-Mode')).toBe('transition');
+      expect(response.headers.get('X-Type')).toBe('component');
+      expect(response.headers.get('X-Target')).toBe('#foo');
+      expect(response.headers.get('X-Cid')).toBeNull();
+      // responseHeaders of the page:
+      expect(response.headers.get('X-Test')).toBe('success');
+    });
+
+    it('should render the element with "X-Cid" when different originalActionId than actionId', async () => {
       const req = getReq();
 
       req.store.set(Symbol.for('DEPENDENCIES'), [
         [['onClick', 'a1_3', 'test-cid']],
       ]);
-      // @ts-ignore
-      req._originalActionId = 'a1_1';
       const error = new Error(
         PREFIX_MESSAGE +
           JSON.stringify({
-            type: 'currentComponent',
+            type: 'component',
+            target: 'component',
+            placement: 'replace',
             renderMode: 'transition',
           }) +
           SUFFIX_MESSAGE,
@@ -386,7 +614,8 @@ describe('utils', () => {
       expect(response.headers.get('Transfer-Encoding')).toBe('chunked');
       expect(response.headers.get('vary')).toBe('Accept-Encoding');
       expect(response.headers.get('X-Mode')).toBe('transition');
-      expect(response.headers.get('X-Type')).toBe('currentComponent');
+      expect(response.headers.get('X-Type')).toBe('component');
+      expect(response.headers.get('X-Target')).toBe('component');
       expect(response.headers.get('X-Cid')).toBe('test-cid');
       // responseHeaders of the page:
       expect(response.headers.get('X-Test')).toBe('success');
@@ -407,7 +636,7 @@ describe('utils', () => {
       const error = new Error(
         PREFIX_MESSAGE +
           JSON.stringify({
-            type: 'targetComponent',
+            type: 'component',
             renderMode: 'transition',
           }) +
           SUFFIX_MESSAGE,
@@ -415,8 +644,6 @@ describe('utils', () => {
       error.name = 'rerender';
 
       const req = getReq();
-      // @ts-ignore
-      req._originalActionId = 'a1_1';
       req.store.set(AVOID_DECLARATIVE_SHADOW_DOM_SYMBOL, true);
       req.store.set('foo', 'bar');
       (req as any).webStore.set('foo', 'bar');
@@ -437,7 +664,7 @@ describe('utils', () => {
       );
     });
 
-    it('should render the component using the Symbol.for("props") from the error throwable', async () => {
+    it('should render the component using the Symbol.for("element") from the error throwable', async () => {
       function Component({ name }: { name: string }) {
         return <div>{name}</div>;
       }
@@ -445,18 +672,16 @@ describe('utils', () => {
       const error = new Error(
         PREFIX_MESSAGE +
           JSON.stringify({
-            type: 'targetComponent',
+            type: 'component',
             renderMode: 'transition',
           }) +
           SUFFIX_MESSAGE,
       );
       error.name = 'rerender';
       // @ts-ignore
-      error[Symbol.for('props')] = { name: 'John' };
+      error[Symbol.for('element')] = <Component name="John" />;
 
       const req = getReq();
-      // @ts-ignore
-      req._originalActionId = 'a1_1';
       const response = await resolveAction({
         req,
         error,
@@ -475,12 +700,10 @@ describe('utils', () => {
         [['onClick', 'a1_3', 'test-cid']],
         [['onClick', 'a1_2', 'test-cid']],
       ]);
-      // @ts-ignore
-      req._originalActionId = 'a1_1';
       const error = new Error(
         PREFIX_MESSAGE +
           JSON.stringify({
-            type: 'targetComponent',
+            type: 'component',
             renderMode: 'transition',
           }) +
           SUFFIX_MESSAGE,
