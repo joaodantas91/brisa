@@ -113,6 +113,19 @@ function getRouteKind(route: string): MatchedBrisaRoute['kind'] {
   return 'exact';
 }
 
+function getURLParams(url: URL) {
+  const params: Record<string, string | string[]> = {};
+  for (const key of url.searchParams.keys()) {
+    params[key] = url.searchParams.getAll(key);
+
+    if (params[key].length === 1) {
+      params[key] = params[key][0];
+    }
+  }
+
+  return params;
+}
+
 function getParamsAndQuery(route: string, pathname: string, url: URL) {
   const routeParts = route.split('/');
   const pathnameParts = pathname.split('/');
@@ -130,7 +143,7 @@ function getParamsAndQuery(route: string, pathname: string, url: URL) {
     {} as Record<string, string | string[]>,
   );
 
-  const query = { ...params, ...Object.fromEntries(url.searchParams) };
+  const query = { ...params, ...getURLParams(url) };
 
   return { params, query };
 }
