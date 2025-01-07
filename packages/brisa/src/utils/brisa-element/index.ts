@@ -320,18 +320,42 @@ export default function brisaElement(
             mount(...(children as [string, Attr, Children]), el, r, effect);
           }
         } else if (isFunction(children)) {
-          let lastNodes: ChildNode[] | undefined;
+          let insertedNodes: ChildNode[] | undefined;
 
           const insertOrUpdate = (nodes: ChildNode[]) => {
-            const element = lastNodes && !el.isConnected ? shadowRoot : el;
+            let anchorIndex = insertedNodes?.findIndex((n) => el.contains(n))!;
+            let oldNode: ChildNode | null | undefined =
+              insertedNodes?.[anchorIndex];
 
-            if (lastNodes && element.contains(lastNodes[0])) {
-              lastNodes[0].after(...nodes);
-              for (const node of lastNodes) node.remove();
+            if (oldNode) {
+              const last = insertedNodes!.at(-1)!;
+              let nodeToClean;
+
+              // If the first node is no longer in the DOM (it is "disconnected"),
+              // it is necessary to clean up to fix overlapping nodes.
+              // This can happen with different effects that use the same element.
+              // https://github.com/brisa-build/brisa/issues/686
+              while (
+                anchorIndex > 0 &&
+                (nodeToClean = oldNode!.previousSibling)
+              ) {
+                nodeToClean.remove();
+              }
+
+              oldNode.before(...nodes);
+
+              // Remove old connected nodes #686
+              while (oldNode && oldNode !== last) {
+                const next = oldNode.nextSibling as ChildNode;
+                oldNode.remove();
+                oldNode = next;
+              }
+
+              last.remove();
             } else {
-              element.append(...nodes);
+              el.append(...nodes);
             }
-            lastNodes = nodes;
+            insertedNodes = nodes;
           };
 
           effect(
@@ -342,6 +366,11 @@ export default function brisaElement(
                 [child, el] = handlePortal(child, el);
 
                 const isDangerHTML = (child as any)?.[0] === HTML;
+
+                // Fix disconnected elements #618 & #686
+                if (insertedNodes && !el.parentNode) {
+                  el = shadowRoot as any;
+                }
 
                 if (isDangerHTML || isReactiveArray(child)) {
                   const tempContainer = createElement(CONTEXT) as any;
@@ -356,7 +385,7 @@ export default function brisaElement(
                     for (const c of child as Children[]) {
                       mount(NULL, {}, c, tempContainer, r(r2), effect);
                     }
-                  } else if ((child as ReactiveArray).length) {
+                  } else {
                     mount(
                       ...(child as ReactiveArray),
                       tempContainer,

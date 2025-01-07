@@ -6322,6 +6322,1154 @@ describe('integration', () => {
       expect(testComponent?.shadowRoot?.innerHTML).toBe('last number = 10');
     });
 
+    it('should handle signals at multiple levels correctly', async () => {
+      const code = `
+        export default function MultiLevelSignals({ active }, { state }) {
+          const showOuter = state(false);
+          const showInner = state(false);
+    
+          return (
+            <div>
+              {active ? (
+                <>
+                  <div>
+                    Outer Section
+                    <button onClick={() => (showOuter.value = !showOuter.value)}>
+                      Toggle Outer
+                    </button>
+                    {showOuter.value ? (
+                      <>
+                        <p>Outer Visible</p>
+                        <button onClick={() => (showInner.value = !showInner.value)}>
+                          Toggle Inner
+                        </button>
+                        {showInner.value ? (
+                          <span>Inner Content Visible</span>
+                        ) : (
+                          <span>Inner Content Hidden</span>
+                        )}
+                      </>
+                    ) : (
+                      <p>Outer Hidden</p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div>No Active Section</div>
+              )}
+            </div>
+          );
+        }
+      `;
+
+      defineBrisaWebComponent(
+        code,
+        'src/web-components/multi-level-signals.tsx',
+      );
+
+      document.body.innerHTML =
+        '<multi-level-signals active="true"></multi-level-signals>';
+      await Bun.sleep(0);
+
+      const component = document.querySelector(
+        'multi-level-signals',
+      ) as HTMLElement;
+      const shadowRoot = component.shadowRoot!;
+      const toggleOuterButton = shadowRoot.querySelector('button');
+
+      // Initial render
+      expect(normalizeHTML(shadowRoot.innerHTML)).toBe(
+        normalizeHTML(`
+          <div>
+            <div>
+              Outer Section
+              <button>Toggle Outer</button>
+              <p>Outer Hidden</p>
+            </div>
+          </div>
+        `),
+      );
+
+      // Toggle outer section
+      toggleOuterButton!.click();
+      await Bun.sleep(0);
+
+      // After toggling outer section
+      expect(normalizeHTML(shadowRoot.innerHTML)).toBe(
+        normalizeHTML(`
+          <div>
+            <div>
+              Outer Section
+              <button>Toggle Outer</button>
+              <p>Outer Visible</p>
+              <button>Toggle Inner</button>
+              <span>Inner Content Hidden</span>
+            </div>
+          </div>
+        `),
+      );
+
+      // Change active prop
+      component.setAttribute('active', 'false');
+      await Bun.sleep(0);
+
+      // Check render after active becomes false
+      expect(normalizeHTML(shadowRoot.innerHTML)).toBe(
+        normalizeHTML(`
+          <div>
+            <div>No Active Section</div>
+          </div>
+        `),
+      );
+    });
+
+    it('should handle nested ternaries with cross-signal dependencies', async () => {
+      const code = `
+        export default function CrossSignals({ toggle }, { state }) {
+          const outerSignal = state(false);
+          const innerSignal = state(false);
+    
+          return (
+            <div>
+              {toggle ? (
+                <>
+                  <div>
+                    Outer {toggle}
+                    <button onClick={() => (outerSignal.value = !outerSignal.value)}>
+                      Toggle Outer
+                    </button>
+                    {outerSignal.value ? (
+                      <>
+                        <p>Outer is Active</p>
+                        {innerSignal.value ? (
+                          <p>Inner is Active</p>
+                        ) : (
+                          <button onClick={() => (innerSignal.value = true)}>
+                            Activate Inner
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <p>Outer is Inactive</p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p>Toggle is off</p>
+              )}
+            </div>
+          );
+        }
+      `;
+
+      defineBrisaWebComponent(code, 'src/web-components/cross-signals.tsx');
+
+      document.body.innerHTML = '<cross-signals toggle="true"></cross-signals>';
+      await Bun.sleep(0);
+
+      const component = document.querySelector('cross-signals') as HTMLElement;
+      const shadowRoot = component.shadowRoot!;
+      const toggleOuterButton = shadowRoot.querySelector('button');
+
+      // Initial render
+      expect(normalizeHTML(shadowRoot.innerHTML)).toBe(
+        normalizeHTML(`
+          <div>
+            <div>
+              Outer true
+              <button>Toggle Outer</button>
+              <p>Outer is Inactive</p>
+            </div>
+          </div>
+        `),
+      );
+
+      // Toggle outer
+      toggleOuterButton!.click();
+      await Bun.sleep(0);
+
+      // After toggling outer
+      expect(normalizeHTML(shadowRoot.innerHTML)).toBe(
+        normalizeHTML(`
+          <div>
+            <div>
+              Outer true
+              <button>Toggle Outer</button>
+              <p>Outer is Active</p>
+              <button>Activate Inner</button>
+            </div>
+          </div>
+        `),
+      );
+
+      // Activate inner
+      const activateInnerButton = shadowRoot.querySelector(
+        'button:nth-of-type(2)',
+      ) as HTMLButtonElement;
+      activateInnerButton!.click();
+      await Bun.sleep(0);
+
+      // After activating inner
+      expect(normalizeHTML(shadowRoot.innerHTML)).toBe(
+        normalizeHTML(`
+          <div>
+            <div>
+              Outer true
+              <button>Toggle Outer</button>
+              <p>Outer is Active</p>
+              <p>Inner is Active</p>
+            </div>
+          </div>
+        `),
+      );
+    });
+
+    it('should handle nested ternaries with signals correctly #686', async () => {
+      const code = `
+        export default function NestedTernaries({ level1, level2 }, { state }) {
+          const showInner = state(false);
+          
+          return (
+            <div>
+              {level1 ? (
+                <>
+                  <div>
+                    Outer {level1}
+                    {level2 ? (
+                      <>
+                        <span>Level 2 - Active</span>
+                        <button onClick={() => (showInner.value = !showInner.value)}>
+                          Toggle Inner
+                        </button>
+                        {showInner.value ? (
+                          <p>Inner Content Visible</p>
+                        ) : (
+                          <p>Inner Content Hidden</p>
+                        )}
+                      </>
+                    ) : (
+                      <span>Level 2 - Inactive</span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div>No Level 1</div>
+              )}
+            </div>
+          );
+        }
+      `;
+
+      defineBrisaWebComponent(code, 'src/web-components/nested-ternaries.tsx');
+
+      document.body.innerHTML =
+        '<nested-ternaries level1="true" level2="true"></nested-ternaries>';
+      await Bun.sleep(0);
+
+      const component = document.querySelector(
+        'nested-ternaries',
+      ) as HTMLElement;
+      const shadowRoot = component.shadowRoot!;
+      const toggleButton = shadowRoot.querySelector('button');
+
+      // Initial render
+      expect(normalizeHTML(shadowRoot.innerHTML)).toBe(
+        normalizeHTML(`
+          <div>
+            <div>
+              Outer true
+              <span>Level 2 - Active</span>
+              <button>Toggle Inner</button>
+              <p>Inner Content Hidden</p>
+            </div>
+          </div>
+        `),
+      );
+
+      // Simulate toggle click
+      toggleButton!.click();
+      await Bun.sleep(0);
+
+      // After toggling inner content
+      expect(normalizeHTML(shadowRoot.innerHTML)).toBe(
+        normalizeHTML(`
+          <div>
+            <div>
+              Outer true
+              <span>Level 2 - Active</span>
+              <button>Toggle Inner</button>
+              <p>Inner Content Visible</p>
+            </div>
+          </div>
+        `),
+      );
+
+      // Change props
+      component.setAttribute('level2', 'false');
+      await Bun.sleep(0);
+
+      // Check render after level2 becomes inactive
+      expect(normalizeHTML(shadowRoot.innerHTML)).toBe(
+        normalizeHTML(`
+          <div>
+            <div>
+              Outer true
+              <span>Level 2 - Inactive</span>
+            </div>
+          </div>
+        `),
+      );
+    });
+
+    it('should render well after change state + change prop signal #686', async () => {
+      const code = `
+        export default async function Chat({ foo, bar }, { state }) {
+          const message = state(false);
+
+          return (
+            <div>
+              {foo ? (
+                <>
+                  <div>
+                    U
+                    <h3 class="text-sm">
+                      {foo} {bar}
+                    </h3>
+                  </div>
+                  {message.value ? (
+                    <div>
+                      Opened
+                    </div>
+                  ) : (
+                    <div>
+                      Closed
+                    </div>
+                  )}
+                  <div>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => (message.value = !message.value)}
+                      >
+                        Open
+                      </button>
+                    </div>
+                    <div>Foo</div>
+                    <div>Bar</div>
+                  </div>
+                </>
+              ) : (
+                <div>
+                Foo
+                </div>
+              )}
+            </div>
+          );
+        }
+      `;
+
+      defineBrisaWebComponent(code, 'src/web-components/chat-example.tsx');
+
+      document.body.innerHTML = '<chat-example foo="bar" bar="baz" />';
+      await Bun.sleep(0);
+
+      const chatExample = document.querySelector('chat-example') as HTMLElement;
+      const button = chatExample.shadowRoot!.querySelector(
+        'button',
+      ) as HTMLButtonElement;
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            U
+            <h3 class="text-sm">
+              bar baz
+            </h3>
+          </div>
+          <div>
+            Closed
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+        </div>  
+      `),
+      );
+
+      button.click();
+      await Bun.sleep(0);
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            U
+            <h3 class="text-sm">
+              bar baz
+            </h3>
+          </div>
+          <div>
+            Opened
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+        </div>  
+      `),
+      );
+
+      chatExample.setAttribute('foo', 'baz');
+      await Bun.sleep(0);
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            U
+            <h3 class="text-sm">
+              baz baz
+            </h3>
+          </div>
+          <div>
+            Opened
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+        </div>  
+      `),
+      );
+    });
+
+    it('should work different signals also with an array of elements #686', async () => {
+      const code = `
+        export default async function Chat({ foo, bar }, { state }) {
+          const message = state(false);
+
+          return (
+            <div>
+              {foo ? (
+                <>
+                  <div>
+                    U
+                    <h3 class="text-sm">
+                      {foo} {bar}
+                    </h3>
+                  </div>
+                  {message.value ? (
+                    [<div>
+                      Is
+                    </div>,
+                    <div>
+                      Opened
+                    </div>]
+                  ) : (
+                    <div>
+                      Closed
+                    </div>
+                  )}
+                  <div>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => (message.value = !message.value)}
+                      >
+                        Open
+                      </button>
+                    </div>
+                    <div>Foo</div>
+                    <div>Bar</div>
+                  </div>
+                </>
+              ) : (
+                <div>
+                Foo
+                </div>
+              )}
+            </div>
+          );
+        }
+      `;
+
+      defineBrisaWebComponent(code, 'src/web-components/chat-example.tsx');
+
+      document.body.innerHTML = '<chat-example foo="bar" bar="baz" />';
+      await Bun.sleep(0);
+
+      const chatExample = document.querySelector('chat-example') as HTMLElement;
+      const button = chatExample.shadowRoot!.querySelector(
+        'button',
+      ) as HTMLButtonElement;
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            U
+            <h3 class="text-sm">
+              bar baz
+            </h3>
+          </div>
+          <div>
+            Closed
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+        </div>  
+      `),
+      );
+
+      button.click();
+      await Bun.sleep(0);
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            U
+            <h3 class="text-sm">
+              bar baz
+            </h3>
+          </div>
+          <div>
+            Is
+          </div>
+           <div>
+            Opened
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+        </div>  
+      `),
+      );
+
+      chatExample.setAttribute('foo', 'baz');
+      await Bun.sleep(0);
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            U
+            <h3 class="text-sm">
+              baz baz
+            </h3>
+          </div>
+           <div>
+            Is
+          </div>
+           <div>
+            Opened
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+        </div>  
+      `),
+      );
+    });
+
+    it('should work when the signal condition is the first child #686', async () => {
+      const code = `
+        export default async function Chat({ foo, bar }, { state }) {
+          const message = state(false);
+
+          return (
+            <div>
+              {foo ? (
+                <>
+                  {message.value ? (
+                    <div>
+                      Opened
+                    </div>
+                  ) : (
+                    <div>
+                      Closed
+                    </div>
+                  )}
+                  <div>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => (message.value = !message.value)}
+                      >
+                        Open
+                      </button>
+                    </div>
+                    <div>Foo</div>
+                    <div>Bar</div>
+                  </div>
+                </>
+              ) : (
+                <div>
+                Foo
+                </div>
+              )}
+            </div>
+          );
+        }
+      `;
+
+      defineBrisaWebComponent(code, 'src/web-components/chat-example.tsx');
+
+      document.body.innerHTML = '<chat-example foo="bar" bar="baz" />';
+      await Bun.sleep(0);
+
+      const chatExample = document.querySelector('chat-example') as HTMLElement;
+      const button = chatExample.shadowRoot!.querySelector(
+        'button',
+      ) as HTMLButtonElement;
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            Closed
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+        </div>  
+      `),
+      );
+
+      button.click();
+      await Bun.sleep(0);
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            Opened
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+        </div>  
+      `),
+      );
+
+      chatExample.setAttribute('foo', 'baz');
+      await Bun.sleep(0);
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            Opened
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+        </div>  
+      `),
+      );
+    });
+
+    it('should work when the signal condition is the last child #686', async () => {
+      const code = `
+        export default async function Chat({ foo, bar }, { state }) {
+          const message = state(false);
+
+          return (
+            <div>
+              {foo ? (
+                <>
+                  <div>
+                    U
+                    <h3 class="text-sm">
+                      {foo} {bar}
+                    </h3>
+                  </div>
+                  <div>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => (message.value = !message.value)}
+                      >
+                        Open
+                      </button>
+                    </div>
+                    <div>Foo</div>
+                    <div>Bar</div>
+                  </div>
+                 {message.value ? (
+                    <div>
+                      Opened
+                    </div>
+                  ) : (
+                    <div>
+                      Closed
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div>
+                Foo
+                </div>
+              )}
+            </div>
+          );
+        }
+      `;
+
+      defineBrisaWebComponent(code, 'src/web-components/chat-example.tsx');
+
+      document.body.innerHTML = '<chat-example foo="bar" bar="baz" />';
+      await Bun.sleep(0);
+
+      const chatExample = document.querySelector('chat-example') as HTMLElement;
+      const button = chatExample.shadowRoot!.querySelector(
+        'button',
+      ) as HTMLButtonElement;
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            U
+            <h3 class="text-sm">
+              bar baz
+            </h3>
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+          <div>
+            Closed
+          </div>
+        </div>  
+      `),
+      );
+
+      button.click();
+      await Bun.sleep(0);
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            U
+            <h3 class="text-sm">
+              bar baz
+            </h3>
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+          <div>
+            Opened
+          </div>
+        </div>  
+      `),
+      );
+
+      chatExample.setAttribute('foo', 'baz');
+      await Bun.sleep(0);
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            U
+            <h3 class="text-sm">
+              baz baz
+            </h3>
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+          <div>
+            Opened
+          </div>
+        </div>  
+      `),
+      );
+    });
+
+    it('should work when the signal condition is the first child + array #686', async () => {
+      const code = `
+        export default async function Chat({ foo, bar }, { state }) {
+          const message = state(false);
+
+          return (
+            <div>
+              {foo ? (
+                <>
+                  {message.value ? (
+                    [<div>
+                      Is
+                    </div>,
+                    <div>
+                      Opened
+                    </div>]
+                  ) : (
+                    <div>
+                      Closed
+                    </div>
+                  )}
+                  <div>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => (message.value = !message.value)}
+                      >
+                        Open
+                      </button>
+                    </div>
+                    <div>Foo</div>
+                    <div>Bar</div>
+                  </div>
+                </>
+              ) : (
+                <div>
+                Foo
+                </div>
+              )}
+            </div>
+          );
+        }
+      `;
+
+      defineBrisaWebComponent(code, 'src/web-components/chat-example.tsx');
+
+      document.body.innerHTML = '<chat-example foo="bar" bar="baz" />';
+      await Bun.sleep(0);
+
+      const chatExample = document.querySelector('chat-example') as HTMLElement;
+      const button = chatExample.shadowRoot!.querySelector(
+        'button',
+      ) as HTMLButtonElement;
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            Closed
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+        </div>  
+      `),
+      );
+
+      button.click();
+      await Bun.sleep(0);
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            Is
+          </div>
+           <div>
+            Opened
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+        </div>  
+      `),
+      );
+
+      chatExample.setAttribute('foo', 'baz');
+      await Bun.sleep(0);
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+           <div>
+            Is
+          </div>
+           <div>
+            Opened
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+        </div>  
+      `),
+      );
+    });
+
+    it('should work when the signal condition is the last child + array #686', async () => {
+      const code = `
+        export default async function Chat({ foo, bar }, { state }) {
+          const message = state(false);
+
+          return (
+            <div>
+              {foo ? (
+                <>
+                  <div>
+                    U
+                    <h3 class="text-sm">
+                      {foo} {bar}
+                    </h3>
+                  </div>
+                  <div>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => (message.value = !message.value)}
+                      >
+                        Open
+                      </button>
+                    </div>
+                    <div>Foo</div>
+                    <div>Bar</div>
+                  </div>
+                  {message.value ? (
+                    [<div>
+                      Is
+                    </div>,
+                    <div>
+                      Opened
+                    </div>]
+                  ) : (
+                    <div>
+                      Closed
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div>
+                Foo
+                </div>
+              )}
+            </div>
+          );
+        }
+      `;
+
+      defineBrisaWebComponent(code, 'src/web-components/chat-example.tsx');
+
+      document.body.innerHTML = '<chat-example foo="bar" bar="baz" />';
+      await Bun.sleep(0);
+
+      const chatExample = document.querySelector('chat-example') as HTMLElement;
+      const button = chatExample.shadowRoot!.querySelector(
+        'button',
+      ) as HTMLButtonElement;
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            U
+            <h3 class="text-sm">
+              bar baz
+            </h3>
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+         <div>
+            Closed
+          </div>
+        </div>  
+      `),
+      );
+
+      button.click();
+      await Bun.sleep(0);
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            U
+            <h3 class="text-sm">
+              bar baz
+            </h3>
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+          <div>
+            Is
+          </div>
+          <div>
+            Opened
+          </div>
+        </div>  
+      `),
+      );
+
+      chatExample.setAttribute('foo', 'baz');
+      await Bun.sleep(0);
+
+      expect(normalizeHTML(chatExample.shadowRoot!.innerHTML)).toBe(
+        normalizeHTML(`
+        <div>
+          <div>
+            U
+            <h3 class="text-sm">
+              baz baz
+            </h3>
+          </div>
+          <div>
+            <div>
+              <button type="button">Open</button>
+            </div>
+            <div>
+              Foo
+            </div>
+            <div>
+              Bar
+            </div>
+          </div>
+          <div>
+            Is
+          </div>
+           <div>
+            Opened
+          </div>
+        </div>  
+      `),
+      );
+    });
+
     // TODO: This test should work after this happydom feat about ElementInternals
     // https://github.com/capricorn86/happy-dom/issues/1419
     it.todo('it should work associating a form to the custom element', () => {
